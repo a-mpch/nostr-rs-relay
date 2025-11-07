@@ -39,6 +39,8 @@ impl EventCmd {
     }
 }
 
+const SUPPORTED_KINDS: [u64; 4] = [13194, 23194, 23195, 23197];
+
 /// Parsed nostr event.
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct Event {
@@ -330,6 +332,10 @@ impl Event {
             }
         }
         true
+    }
+
+    pub fn is_valid_kind(&self) -> bool {
+        SUPPORTED_KINDS.contains(&self.kind)
     }
 
     /// Check if this event has a valid signature.
