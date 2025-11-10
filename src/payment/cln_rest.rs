@@ -30,6 +30,7 @@ pub struct ClnRestPaymentProcessor {
 }
 
 impl ClnRestPaymentProcessor {
+    #[allow(clippy::result_large_err)]
     pub fn new(settings: &Settings) -> Result<Self> {
         let rune_path = settings
             .pay_to_relay

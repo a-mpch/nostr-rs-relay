@@ -15,6 +15,7 @@ use tracing::info;
 /// Bulk load JSONL data from STDIN to the database specified in config.toml (or ./nostr.db as a default).
 /// The database must already exist, this will not create a new one.
 /// Tested against schema v13.
+#[allow(clippy::result_large_err)]
 pub fn main() -> Result<()> {
     let _trace_sub = tracing_subscriber::fmt::try_init();
     println!("Nostr-rs-relay Bulk Loader");
@@ -125,6 +126,7 @@ pub fn main() -> Result<()> {
 
 /// Write an event and update the tag table.
 /// Assumes the event has its index built.
+#[allow(clippy::result_large_err)]
 fn write_event(tx: &Transaction, e: Event) -> Result<usize> {
     let id_blob = hex::decode(&e.id).ok();
     let pubkey_blob: Option<Vec<u8>> = hex::decode(&e.pubkey).ok();

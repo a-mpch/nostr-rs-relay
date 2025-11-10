@@ -311,20 +311,20 @@ impl ReqFilter {
     fn ids_match(&self, event: &Event) -> bool {
         self.ids
             .as_ref()
-            .map_or(true, |vs| prefix_match(vs, &event.id))
+            .is_none_or(|vs| prefix_match(vs, &event.id))
     }
 
     fn authors_match(&self, event: &Event) -> bool {
         self.authors
             .as_ref()
-            .map_or(true, |vs| prefix_match(vs, &event.pubkey))
+            .is_none_or(|vs| prefix_match(vs, &event.pubkey))
     }
 
     fn delegated_authors_match(&self, event: &Event) -> bool {
         if let Some(delegated_pubkey) = &event.delegated_by {
             self.authors
                 .as_ref()
-                .map_or(true, |vs| prefix_match(vs, delegated_pubkey))
+                .is_none_or(|vs| prefix_match(vs, delegated_pubkey))
         } else {
             false
         }
@@ -348,7 +348,7 @@ impl ReqFilter {
 
     /// Check if this filter either matches, or does not care about the kind.
     fn kind_match(&self, kind: u64) -> bool {
-        self.kinds.as_ref().map_or(true, |ks| ks.contains(&kind))
+        self.kinds.as_ref().is_none_or(|ks| ks.contains(&kind))
     }
 
     /// Determine if all populated fields in this filter match the provided event.
@@ -356,8 +356,8 @@ impl ReqFilter {
     pub fn interested_in_event(&self, event: &Event) -> bool {
         //        self.id.as_ref().map(|v| v == &event.id).unwrap_or(true)
         self.ids_match(event)
-            && self.since.map_or(true, |t| event.created_at >= t)
-            && self.until.map_or(true, |t| event.created_at <= t)
+            && self.since.is_none_or(|t| event.created_at >= t)
+            && self.until.is_none_or(|t| event.created_at <= t)
             && self.kind_match(event.kind)
             && (self.authors_match(event) || self.delegated_authors_match(event))
             && self.tag_match(event)
@@ -370,6 +370,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[allow(clippy::result_large_err)]
     fn empty_request_parse() -> Result<()> {
         let raw_json = "[\"REQ\",\"some-id\",{}]";
         let s: Subscription = serde_json::from_str(raw_json)?;
@@ -417,6 +418,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::result_large_err)]
     fn dupe_filter() -> Result<()> {
         let raw_json = r#"["REQ","some-id",{"kinds": [1984]}, {"kinds": [1984]}]"#;
         let s: Subscription = serde_json::from_str(raw_json)?;
@@ -425,6 +427,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::result_large_err)]
     fn dupe_filter_many() -> Result<()> {
         // duplicate filters in different order
         let raw_json = r#"["REQ","some-id",{"kinds":[1984]},{"kinds":[1984]},{"kinds":[1984]},{"kinds":[1984]}]"#;
@@ -434,6 +437,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::result_large_err)]
     fn author_filter() -> Result<()> {
         let raw_json = r#"["REQ","some-id",{"authors": ["test-author-id"]}]"#;
         let s: Subscription = serde_json::from_str(raw_json)?;
@@ -448,6 +452,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::result_large_err)]
     fn interest_author_prefix_match() -> Result<()> {
         // subscription with a filter for ID
         let s: Subscription = serde_json::from_str(r#"["REQ","xyz",{"authors": ["abc"]}]"#)?;
@@ -467,6 +472,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::result_large_err)]
     fn interest_id_prefix_match() -> Result<()> {
         // subscription with a filter for ID
         let s: Subscription = serde_json::from_str(r#"["REQ","xyz",{"ids": ["abc"]}]"#)?;
@@ -486,6 +492,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::result_large_err)]
     fn interest_id_nomatch() -> Result<()> {
         // subscription with a filter for ID
         let s: Subscription = serde_json::from_str(r#"["REQ","xyz",{"ids": ["xyz"]}]"#)?;
@@ -505,6 +512,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::result_large_err)]
     fn interest_until() -> Result<()> {
         // subscription with a filter for ID and time
         let s: Subscription =
@@ -525,6 +533,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::result_large_err)]
     fn interest_range() -> Result<()> {
         // subscription with a filter for ID and time
         let s_in: Subscription =
@@ -551,6 +560,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::result_large_err)]
     fn interest_time_and_id() -> Result<()> {
         // subscription with a filter for ID and time
         let s: Subscription =
@@ -571,6 +581,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::result_large_err)]
     fn interest_time_and_id2() -> Result<()> {
         // subscription with a filter for ID and time
         let s: Subscription = serde_json::from_str(r#"["REQ","xyz",{"id":"abc", "since": 1000}]"#)?;
@@ -590,6 +601,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::result_large_err)]
     fn interest_id() -> Result<()> {
         // subscription with a filter for ID
         let s: Subscription = serde_json::from_str(r#"["REQ","xyz",{"id":"abc"}]"#)?;
@@ -609,6 +621,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::result_large_err)]
     fn authors_single() -> Result<()> {
         // subscription with a filter for ID
         let s: Subscription = serde_json::from_str(r#"["REQ","xyz",{"authors":["abc"]}]"#)?;
@@ -628,6 +641,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::result_large_err)]
     fn authors_multi_pubkey() -> Result<()> {
         // check for any of a set of authors, against the pubkey
         let s: Subscription = serde_json::from_str(r#"["REQ","xyz",{"authors":["abc", "bcd"]}]"#)?;
@@ -647,6 +661,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::result_large_err)]
     fn authors_multi_no_match() -> Result<()> {
         // check for any of a set of authors, against the pubkey
         let s: Subscription = serde_json::from_str(r#"["REQ","xyz",{"authors":["abc", "bcd"]}]"#)?;
@@ -666,13 +681,14 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::result_large_err)]
     fn serialize_filter() -> Result<()> {
         let s: Subscription = serde_json::from_str(
             r##"["REQ","xyz",{"authors":["abc", "bcd"], "since": 10, "until": 20, "limit":100, "#e": ["foo", "bar"], "#d": ["test"]}]"##,
         )?;
         let f = s.filters.first();
         let serialized = serde_json::to_string(&f)?;
-        let serialized_wrapped = format!(r##"["REQ", "xyz",{}]"##, serialized);
+        let serialized_wrapped = format!(r##"["REQ", "xyz",{serialized}]"##);
         let parsed: Subscription = serde_json::from_str(&serialized_wrapped)?;
         let parsed_filter = parsed.filters.first();
         if let Some(pf) = parsed_filter {
@@ -680,12 +696,13 @@ mod tests {
             assert_eq!(pf.until, Some(20));
             assert_eq!(pf.limit, Some(100));
         } else {
-            assert!(false, "filter could not be parsed");
+            panic!("filter could not be parsed");
         }
         Ok(())
     }
 
     #[test]
+    #[allow(clippy::result_large_err)]
     fn is_scraper() -> Result<()> {
         assert!(serde_json::from_str::<Subscription>(
             r#"["REQ","some-id",{"kinds": [1984],"since": 123,"limit":1}]"#
@@ -711,6 +728,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::result_large_err)]
     fn is_targeted() -> Result<()> {
         assert!(!serde_json::from_str::<Subscription>(
             r#"["REQ","some-id",{"kinds": [1984],"since": 123,"limit":1}]"#

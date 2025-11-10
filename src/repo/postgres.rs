@@ -379,7 +379,7 @@ ON CONFLICT (id) DO NOTHING"#,
                 }
 
                 // check if this is still active; every 100 rows
-                if row_count % 100 == 0 && abandon_query_rx.try_recv().is_ok() {
+                if row_count.is_multiple_of(100) && abandon_query_rx.try_recv().is_ok() {
                     debug!(
                         "query cancelled by client (cid: {}, sub: {:?})",
                         client_id, sub.id
@@ -712,7 +712,7 @@ LIMIT 1;
 }
 
 /// Create a dynamic SQL query and params from a subscription filter.
-fn query_from_filter(f: &ReqFilter) -> Option<QueryBuilder<Postgres>> {
+fn query_from_filter(f: &ReqFilter) -> Option<QueryBuilder<'_, Postgres>> {
     // if the filter is malformed, don't return anything.
     if f.force_no_match {
         return None;
@@ -807,7 +807,7 @@ fn query_from_filter(f: &ReqFilter) -> Option<QueryBuilder<Postgres>> {
                     .push_bind(key.to_string())
                     .push(" AND (");
 
-                let has_plain_values = val.iter().any(|v| (v.len() % 2 != 0 || !is_lower_hex(v)));
+                let has_plain_values = val.iter().any(|v| v.len() % 2 != 0 || !is_lower_hex(v));
                 let has_hex_values = val.iter().any(|v| v.len() % 2 == 0 && is_lower_hex(v));
                 if has_plain_values {
                     query.push("value in (");

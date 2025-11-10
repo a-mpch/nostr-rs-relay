@@ -206,7 +206,7 @@ impl Settings {
                 if config_file_name.is_some() {
                     Err(e)
                 } else {
-                    eprintln!("Error reading config file ({:?})", e);
+                    eprintln!("Error reading config file ({e:?})");
                     eprintln!("WARNING: Default configuration settings will be used");
                     Ok(default_settings)
                 }

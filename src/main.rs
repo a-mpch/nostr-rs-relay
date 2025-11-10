@@ -39,11 +39,11 @@ fn main() {
             process::exit(1);
         }
         if let Err(err) = fs::metadata(path) {
-            eprintln!("Error while accessing file metadata: {}", err);
+            eprintln!("Error while accessing file metadata: {err}");
             process::exit(1);
         }
         if let Err(err) = fs::File::open(path) {
-            eprintln!("Config file is not readable: {}", err);
+            eprintln!("Config file is not readable: {err}");
             process::exit(1);
         }
     }
@@ -53,7 +53,7 @@ fn main() {
     // configure settings from the config file (defaults to config.toml)
     // replace default settings with those read from the config file
     let mut settings = config::Settings::new(&config_file_arg).unwrap_or_else(|e| {
-        eprintln!("Error reading config file ({:?})", e);
+        eprintln!("Error reading config file ({e:?})");
         process::exit(1);
     });
 

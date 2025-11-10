@@ -243,6 +243,7 @@ async fn handle_web_request(
 }
 
 // Get pubkey from request query string
+#[allow(dead_code)]
 fn get_pubkey(request: Request<Body>) -> Option<String> {
     let query = request.uri().query().unwrap_or("").to_string();
 
@@ -365,6 +366,7 @@ fn create_metrics() -> (Registry, NostrMetrics) {
     (registry, metrics)
 }
 
+#[allow(clippy::result_large_err)]
 fn file_bytes(path: &str) -> Result<Vec<u8>> {
     let f = File::open(path)?;
     let mut reader = BufReader::new(f);
@@ -375,6 +377,7 @@ fn file_bytes(path: &str) -> Result<Vec<u8>> {
 }
 
 /// Start running a Nostr relay server.
+#[allow(clippy::result_large_err)]
 pub fn start_server(settings: &Settings, shutdown_rx: MpscReceiver<()>) -> Result<(), Error> {
     trace!("Config: {:?}", settings);
     // do some config validation.
@@ -611,6 +614,7 @@ pub enum NostrMessage {
 }
 
 /// Convert Message to `NostrMessage`
+#[allow(clippy::result_large_err)]
 fn convert_to_msg(msg: &str, max_bytes: Option<usize>) -> Result<NostrMessage> {
     let parsed_res: Result<NostrMessage> =
         serde_json::from_str(msg).map_err(std::convert::Into::into);
@@ -887,7 +891,7 @@ async fn nostr_server(
                                 metrics.cmd_event.inc();
                                 let id_prefix:String = e.id.chars().take(8).collect();
                                 debug!("successfully parsed/validated event: {:?} (cid: {}, kind: {})", id_prefix, cid, e.kind);
-                                
+
                                 // check if event is expired
                                 if e.is_expired() {
                                     let notice = Notice::invalid(e.id, "The event has already expired");
@@ -907,7 +911,7 @@ async fn nostr_server(
                                         event_tx.send(submit_event).await.ok();
                                     } else {
                                         info!("client: {} sent an invalid kind event", cid);
-                                        let msg = format!("The event kind is not supported by this relay.");
+                                        let msg = "The event kind is not supported by this relay.".to_string();
                                         let notice = Notice::invalid(e.id, &msg);
                                         ws_stream.send(make_notice_message(&notice)).await.ok();
 

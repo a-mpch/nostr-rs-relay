@@ -289,49 +289,51 @@ pub async fn db_writer(
         };
 
         // check for  NIP-05 verification
-        if nip05_enabled && validation.is_some() {
-            match validation.as_ref().unwrap() {
-                Ok(uv) => {
-                    if uv.is_valid(&settings.verified_users) {
-                        info!(
-                            "new event from verified author ({:?},{:?})",
-                            uv.name.to_string(),
-                            event.get_author_prefix()
-                        );
-                    } else {
-                        info!(
-                            "rejecting event, author ({:?} / {:?}) verification invalid (expired/wrong domain)",
-                            uv.name.to_string(),
+        if nip05_enabled {
+            if let Some(validation) = validation.as_ref() {
+                match validation {
+                    Ok(uv) => {
+                        if uv.is_valid(&settings.verified_users) {
+                            info!(
+                                "new event from verified author ({:?},{:?})",
+                                uv.name.to_string(),
+                                event.get_author_prefix()
+                            );
+                        } else {
+                            info!(
+                                "rejecting event, author ({:?} / {:?}) verification invalid (expired/wrong domain)",
+                                uv.name.to_string(),
+                                event.get_author_prefix()
+                            );
+                            notice_tx
+                                .try_send(Notice::blocked(
+                                    event.id,
+                                    "NIP-05 verification is no longer valid (expired/wrong domain)",
+                                ))
+                                .ok();
+                            continue;
+                        }
+                    }
+                    Err(
+                        Error::SqlError(rusqlite::Error::QueryReturnedNoRows)
+                        | Error::SqlxError(sqlx::Error::RowNotFound),
+                    ) => {
+                        debug!(
+                            "no verification records found for pubkey: {:?}",
                             event.get_author_prefix()
                         );
                         notice_tx
                             .try_send(Notice::blocked(
                                 event.id,
-                                "NIP-05 verification is no longer valid (expired/wrong domain)",
+                                "NIP-05 verification needed to publish events",
                             ))
                             .ok();
                         continue;
                     }
-                }
-                Err(
-                    Error::SqlError(rusqlite::Error::QueryReturnedNoRows)
-                    | Error::SqlxError(sqlx::Error::RowNotFound),
-                ) => {
-                    debug!(
-                        "no verification records found for pubkey: {:?}",
-                        event.get_author_prefix()
-                    );
-                    notice_tx
-                        .try_send(Notice::blocked(
-                            event.id,
-                            "NIP-05 verification needed to publish events",
-                        ))
-                        .ok();
-                    continue;
-                }
-                Err(e) => {
-                    warn!("checking nip05 verification status failed: {:?}", e);
-                    continue;
+                    Err(e) => {
+                        warn!("checking nip05 verification status failed: {:?}", e);
+                        continue;
+                    }
                 }
             }
         }

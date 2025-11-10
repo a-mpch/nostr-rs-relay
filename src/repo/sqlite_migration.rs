@@ -130,6 +130,7 @@ CREATE INDEX IF NOT EXISTS invoice_pubkey_index ON invoice(pubkey);
 );
 
 /// Determine the current application database schema version.
+#[allow(clippy::result_large_err)]
 pub fn curr_db_version(conn: &mut Connection) -> Result<usize> {
     let query = "PRAGMA user_version;";
     let curr_version = conn.query_row(query, [], |row| row.get(0))?;
@@ -137,6 +138,7 @@ pub fn curr_db_version(conn: &mut Connection) -> Result<usize> {
 }
 
 /// Determine event count
+#[allow(clippy::result_large_err)]
 pub fn db_event_count(conn: &mut Connection) -> Result<usize> {
     let query = "SELECT count(*) FROM event;";
     let count = conn.query_row(query, [], |row| row.get(0))?;
@@ -144,6 +146,7 @@ pub fn db_event_count(conn: &mut Connection) -> Result<usize> {
 }
 
 /// Determine tag count
+#[allow(clippy::result_large_err)]
 pub fn db_tag_count(conn: &mut Connection) -> Result<usize> {
     let query = "SELECT count(*) FROM tag;";
     let count = conn.query_row(query, [], |row| row.get(0))?;
@@ -167,6 +170,7 @@ fn mig_init(conn: &mut PooledConnection) -> usize {
 }
 
 /// Upgrade DB to latest version, and execute pragma settings
+#[allow(clippy::result_large_err)]
 pub fn upgrade_db(conn: &mut PooledConnection) -> Result<usize> {
     // check the version.
     let mut curr_version = curr_db_version(conn)?;
@@ -271,6 +275,7 @@ pub fn upgrade_db(conn: &mut PooledConnection) -> Result<usize> {
     Ok(DB_VERSION)
 }
 
+#[allow(clippy::result_large_err)]
 pub fn rebuild_tags(conn: &mut PooledConnection) -> Result<()> {
     // Check how many events we have to process
     let count = db_event_count(conn)?;
@@ -327,6 +332,7 @@ pub fn rebuild_tags(conn: &mut PooledConnection) -> Result<()> {
 
 // Migration Scripts
 
+#[allow(clippy::result_large_err)]
 fn mig_1_to_2(conn: &mut PooledConnection) -> Result<usize> {
     // only change is adding a hidden column to events.
     let upgrade_sql = r##"
@@ -346,6 +352,7 @@ PRAGMA user_version = 2;
     Ok(2)
 }
 
+#[allow(clippy::result_large_err)]
 fn mig_2_to_3(conn: &mut PooledConnection) -> Result<usize> {
     // this version lacks the tag column
     info!("database schema needs update from 2->3");
@@ -394,6 +401,7 @@ PRAGMA user_version = 3;
     Ok(3)
 }
 
+#[allow(clippy::result_large_err)]
 fn mig_3_to_4(conn: &mut PooledConnection) -> Result<usize> {
     info!("database schema needs update from 3->4");
     let upgrade_sql = r##"
@@ -423,6 +431,7 @@ PRAGMA user_version = 4;
     Ok(4)
 }
 
+#[allow(clippy::result_large_err)]
 fn mig_4_to_5(conn: &mut PooledConnection) -> Result<usize> {
     info!("database schema needs update from 4->5");
     let upgrade_sql = r##"
@@ -442,6 +451,7 @@ PRAGMA user_version=5;
     Ok(5)
 }
 
+#[allow(clippy::result_large_err)]
 fn mig_5_to_6(conn: &mut PooledConnection) -> Result<usize> {
     info!("database schema needs update from 5->6");
     // We need to rebuild the tags table.  iterate through the
@@ -495,6 +505,7 @@ fn mig_5_to_6(conn: &mut PooledConnection) -> Result<usize> {
     Ok(6)
 }
 
+#[allow(clippy::result_large_err)]
 fn mig_6_to_7(conn: &mut PooledConnection) -> Result<usize> {
     info!("database schema needs update from 6->7");
     let upgrade_sql = r##"
@@ -514,6 +525,7 @@ PRAGMA user_version = 7;
     Ok(7)
 }
 
+#[allow(clippy::result_large_err)]
 fn mig_7_to_8(conn: &mut PooledConnection) -> Result<usize> {
     info!("database schema needs update from 7->8");
     // Remove redundant indexes, and add a better multi-column index.
@@ -535,6 +547,7 @@ PRAGMA user_version = 8;
     Ok(8)
 }
 
+#[allow(clippy::result_large_err)]
 fn mig_8_to_9(conn: &mut PooledConnection) -> Result<usize> {
     info!("database schema needs update from 8->9");
     // Those old indexes were actually helpful...
@@ -555,6 +568,7 @@ PRAGMA user_version = 9;
     Ok(9)
 }
 
+#[allow(clippy::result_large_err)]
 fn mig_9_to_10(conn: &mut PooledConnection) -> Result<usize> {
     info!("database schema needs update from 9->10");
     // Those old indexes were actually helpful...
@@ -574,6 +588,7 @@ PRAGMA user_version = 10;
     Ok(10)
 }
 
+#[allow(clippy::result_large_err)]
 fn mig_10_to_11(conn: &mut PooledConnection) -> Result<usize> {
     info!("database schema needs update from 10->11");
     // Those old indexes were actually helpful...
@@ -595,6 +610,7 @@ PRAGMA user_version = 11;
     Ok(11)
 }
 
+#[allow(clippy::result_large_err)]
 fn mig_11_to_12(conn: &mut PooledConnection) -> Result<usize> {
     info!("database schema needs update from 11->12");
     let start = Instant::now();
@@ -630,6 +646,7 @@ fn mig_11_to_12(conn: &mut PooledConnection) -> Result<usize> {
     Ok(12)
 }
 
+#[allow(clippy::result_large_err)]
 fn mig_12_to_13(conn: &mut PooledConnection) -> Result<usize> {
     info!("database schema needs update from 12->13");
     let upgrade_sql = r##"
@@ -650,6 +667,7 @@ PRAGMA user_version = 13;
     Ok(13)
 }
 
+#[allow(clippy::result_large_err)]
 fn mig_13_to_14(conn: &mut PooledConnection) -> Result<usize> {
     info!("database schema needs update from 13->14");
     let upgrade_sql = r##"
@@ -670,6 +688,7 @@ PRAGMA user_version = 14;
     Ok(14)
 }
 
+#[allow(clippy::result_large_err)]
 fn mig_14_to_15(conn: &mut PooledConnection) -> Result<usize> {
     info!("database schema needs update from 14->15");
     let upgrade_sql = r##"
@@ -701,6 +720,7 @@ PRAGMA user_version = 15;
     Ok(15)
 }
 
+#[allow(clippy::result_large_err)]
 fn mig_15_to_16(conn: &mut PooledConnection) -> Result<usize> {
     let count = db_event_count(conn)?;
     info!("database schema needs update from 15->16 (this may take a few minutes)");
@@ -774,6 +794,7 @@ CREATE INDEX IF NOT EXISTS tag_covering_index ON tag(name,kind,value,created_at,
     Ok(16)
 }
 
+#[allow(clippy::result_large_err)]
 fn mig_16_to_17(conn: &mut PooledConnection) -> Result<usize> {
     info!("database schema needs update from 16->17");
     let upgrade_sql = r##"
@@ -793,6 +814,7 @@ PRAGMA user_version = 17;
     Ok(17)
 }
 
+#[allow(clippy::result_large_err)]
 fn mig_17_to_18(conn: &mut PooledConnection) -> Result<usize> {
     info!("database schema needs update from 17->18");
     let upgrade_sql = r##"

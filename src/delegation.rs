@@ -172,7 +172,7 @@ impl Condition {
             }
             Operator::Equals => {
                 // equals is interpreted as "must be equal to at least one provided value"
-                return self.values.iter().any(|&x| resolved_field == x);
+                return self.values.contains(&resolved_field);
             }
             Operator::NotEquals => {
                 // not-equals is interpreted as "must not be equal to any provided value"
@@ -228,6 +228,7 @@ mod tests {
 
     // parse condition strings
     #[test]
+    #[allow(clippy::result_large_err)]
     fn parse_empty() -> Result<()> {
         // given an empty condition query, produce an empty vector
         let empty_cq = ConditionQuery { conditions: vec![] };
@@ -238,6 +239,7 @@ mod tests {
 
     // parse field 'kind'
     #[test]
+    #[allow(clippy::result_large_err)]
     fn test_kind_field_parse() -> Result<()> {
         let field = "kind".parse::<Field>()?;
         assert_eq!(field, Field::Kind);
@@ -245,6 +247,7 @@ mod tests {
     }
     // parse field 'created_at'
     #[test]
+    #[allow(clippy::result_large_err)]
     fn test_created_at_field_parse() -> Result<()> {
         let field = "created_at".parse::<Field>()?;
         assert_eq!(field, Field::CreatedAt);
@@ -259,6 +262,7 @@ mod tests {
 
     // parse a full conditional query with an empty array
     #[test]
+    #[allow(clippy::result_large_err)]
     fn parse_kind_equals_empty() -> Result<()> {
         // given an empty condition query, produce an empty vector
         let kind_cq = ConditionQuery {
@@ -274,6 +278,7 @@ mod tests {
     }
     // parse a full conditional query with a single value
     #[test]
+    #[allow(clippy::result_large_err)]
     fn parse_kind_equals_singleval() -> Result<()> {
         // given an empty condition query, produce an empty vector
         let kind_cq = ConditionQuery {
@@ -289,6 +294,7 @@ mod tests {
     }
     // parse a full conditional query with multiple values
     #[test]
+    #[allow(clippy::result_large_err)]
     fn parse_kind_equals_multival() -> Result<()> {
         // given an empty condition query, produce an empty vector
         let kind_cq = ConditionQuery {
@@ -304,6 +310,7 @@ mod tests {
     }
     // parse multiple conditions
     #[test]
+    #[allow(clippy::result_large_err)]
     fn parse_multi_conditions() -> Result<()> {
         // given an empty condition query, produce an empty vector
         let cq = ConditionQuery {

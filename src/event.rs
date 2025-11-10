@@ -339,6 +339,7 @@ impl Event {
     }
 
     /// Check if this event has a valid signature.
+    #[allow(clippy::result_large_err)]
     pub fn validate(&self) -> Result<()> {
         // TODO: return a Result with a reason for invalid events
         // validation is performed by:
@@ -458,6 +459,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::result_large_err)]
     fn event_serialize() -> Result<()> {
         // serialize an event to JSON string
         let event = Event::simple_event();
@@ -483,6 +485,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::result_large_err)]
     fn event_tags_serialize() -> Result<()> {
         // serialize an event with tags to JSON string
         let mut event = Event::simple_event();
@@ -504,6 +507,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::result_large_err)]
     fn event_deserialize() -> Result<()> {
         let raw_json = r#"{"id":"1384757da583e6129ce831c3d7afc775a33a090578f888dd0d010328ad047d0c","pubkey":"bbbd9711d357df4f4e498841fd796535c95c8e751fa35355008a911c41265fca","created_at":1612650459,"kind":1,"tags":null,"content":"hello world","sig":"59d0cc47ab566e81f72fe5f430bcfb9b3c688cb0093d1e6daa49201c00d28ecc3651468b7938642869ed98c0f1b262998e49a05a6ed056c0d92b193f4e93bc21"}"#;
         let e: Event = serde_json::from_str(raw_json)?;

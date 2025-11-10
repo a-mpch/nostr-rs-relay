@@ -102,6 +102,7 @@ impl SqliteRepo {
     }
 
     /// Persist an event to the database, returning rows added.
+    #[allow(clippy::result_large_err)]
     pub fn persist_event(conn: &mut PooledConnection, e: &Event) -> Result<u64> {
         // enable auto vacuum
         conn.execute_batch("pragma auto_vacuum = FULL")?;
@@ -425,7 +426,7 @@ impl NostrRepo for SqliteRepo {
                             first_result = false;
                         }
                         // check if a checkpoint is trying to run, and abort
-                        if row_count % 100 == 0 {
+                        if row_count.is_multiple_of(100) {
                             {
                                 if self.checkpoint_in_progress.try_lock().is_err() {
                                     // lock was held, abort this query
@@ -443,7 +444,7 @@ impl NostrRepo for SqliteRepo {
                         }
 
                         // check if this is still active; every 100 rows
-                        if row_count % 100 == 0 && abandon_query_rx.try_recv().is_ok() {
+                        if row_count.is_multiple_of(100) && abandon_query_rx.try_recv().is_ok() {
                             debug!(
                                 "query cancelled by client (cid: {}, sub: {:?})",
                                 client_id, sub.id
@@ -1220,6 +1221,7 @@ async fn cleanup_expired(
 }
 
 /// Execute a query to delete all expired events
+#[allow(clippy::result_large_err)]
 pub fn delete_expired(conn: &mut PooledConnection) -> Result<usize> {
     let tx = conn.transaction()?;
     let update_count = tx.execute(
@@ -1289,6 +1291,7 @@ enum SqliteStatus {
 }
 
 /// Checkpoint/Truncate WAL.  Returns the number of WAL pages remaining.
+#[allow(clippy::result_large_err)]
 pub fn checkpoint_db(conn: &mut PooledConnection) -> Result<usize> {
     let query = "PRAGMA wal_checkpoint(TRUNCATE);";
     let start = Instant::now();
