@@ -1,39 +1,101 @@
-name: Test and build
+name: ci
 
 on:
+  pull_request:
   push:
     branches:
       - master
+      - main
+
+# Workflows run on a PR should cancel previous workflows run on the same PR, but
+# this rule should NOT apply to workflows running anywhere else (e.g. master)
+# `head_ref` is only defined for PRs, and `run_id` is unique per run, QED.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Don't emit giant backtraces in CI.
+  RUST_BACKTRACE: short
+  # Fail CI even on rustc "warning" lints.
+  RUSTFLAGS: -D warnings
+  RUSTDOCFLAGS: -D warnings
+  # Allow more retries for network requests in cargo (downloading crates) and
+  # rustup (installing toolchains). This should help to reduce flaky CI failures
+  # from transient network timeouts or other issues.
+  CARGO_NET_RETRY: 10
+  RUSTUP_MAX_RETRIES: 10
+  # Set log level in CI to warn.
+  RUST_LOG: warn
+  # Colorize cargo output in CI.
+  CARGO_TERM_COLOR: always
+  # Less wasteful caching w/ non-incremental builds.
+  CARGO_INCREMENTAL: 0
 
 jobs:
-  test_nostr-rs-relay:
+  clippy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      # Workspace clippy
+      - run: cargo clippy --locked --workspace --all-targets -- --deny=warnings
 
-      - name: Update local toolchain
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      # Run tests
+      - run: cargo test --locked --workspace
+
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup install --component=rustfmt nightly-2025-10-16
+      - run: rustup run nightly-2025-10-16 cargo fmt --all -- --check
+
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install nak
         run: |
-          sudo apt-get install -y protobuf-compiler
-          rustup update
-          rustup component add clippy
-          rustup install nightly
-
-      - name: Toolchain info
+          curl -sL https://api.github.com/repos/fiatjaf/nak/releases/latest | \
+            jq -r '.assets[] | select(.name | contains("linux-amd64")) | .browser_download_url' | \
+            xargs curl -L -o nak
+          chmod +x nak
+          sudo mv nak /usr/local/bin/
+          nak --version
+      - name: Build relay
+        run: cargo build --locked --bin nostr-rs-relay
+      - name: Start relay
         run: |
-          cargo --version --verbose
-          rustc --version
-          cargo clippy --version
-
-      # - name: Lint
-      #   run: |
-      #     cargo fmt -- --check
-      #     cargo clippy -- -D warnings
-
-      - name: Test
+          RUST_LOG=warn,nostr_rs_relay=info ./target/debug/nostr-rs-relay &
+          echo $! > relay.pid
+          # Wait for relay to start
+          sleep 3
+      - name: Run integration tests
         run: |
-          cargo check
-          cargo test --all
-
-      - name: Build
+          chmod +x ./just/basic-test.sh
+          ./just/basic-test.sh
+      - name: Stop relay
+        if: always()
         run: |
-          cargo build --release --locked
+          if [ -f relay.pid ]; then
+            kill $(cat relay.pid) || true
+          fi

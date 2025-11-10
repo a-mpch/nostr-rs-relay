@@ -32,7 +32,7 @@ TIMESTAMP=$(date +%s)
 EVENT_HASH=$(printf "test_event_%s" "$TIMESTAMP" | sha256sum | cut -d' ' -f1)
 EVENT_JSON='{"id":"'$EVENT_HASH'","pubkey":"'$TEST_PUBKEY'","created_at":'$TIMESTAMP',"kind":1,"tags":[],"content":"test stored message","sig":"dummy"}'
 
-sqlite3 /Users/mpch/repos/nostr/nostr-rs-relay/nostr.db << EOF
+sqlite3 nostr.db << EOF
 INSERT INTO event (event_hash, first_seen, created_at, author, kind, content)
 VALUES (
     x'${EVENT_HASH}',
