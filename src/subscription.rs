@@ -281,6 +281,20 @@ impl Subscription {
         }
         false
     }
+
+    /// Check if this subscription has either a `e` or `p` tag.
+    pub fn is_targeted(&self) -> bool {
+        for f in &self.filters {
+            let has_expected_tag = f
+                .tags
+                .as_ref()
+                .map(|t| t.iter().any(|(c, _)| c == &'e' || c == &'p'));
+            if has_expected_tag.unwrap_or(false) {
+                return true;
+            }
+        }
+        false
+    }
 }
 
 fn prefix_match(prefixes: &[String], target: &str) -> bool {
@@ -693,6 +707,23 @@ mod tests {
             r##"["REQ","some-id",{"#p": ["aaaa"],"kinds":[1,4]}]"##
         )?
         .is_scraper());
+        Ok(())
+    }
+
+    #[test]
+    fn is_targeted() -> Result<()> {
+        assert!(!serde_json::from_str::<Subscription>(
+            r#"["REQ","some-id",{"kinds": [1984],"since": 123,"limit":1}]"#
+        )?
+        .is_targeted());
+        assert!(serde_json::from_str::<Subscription>(
+            r##"["REQ","some-id",{"kinds": [1984]},{"kinds": [1984],"authors":["aaaa"],"#e":["foo"]}]"##
+        )?
+        .is_targeted());
+        assert!(serde_json::from_str::<Subscription>(
+            r##"["REQ","some-id",{"authors":["aaaa"],"#p":["foo"]}]"##
+        )?
+        .is_targeted());
         Ok(())
     }
 }
