@@ -65,6 +65,18 @@ jobs:
       - run: rustup install --component=rustfmt nightly-2025-10-16
       - run: rustup run nightly-2025-10-16 cargo fmt --all -- --check
 
+  doc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: cargo doc --locked --no-deps --document-private-items
+      # don't cache built docs, they take up a lot of space and rebuild quickly
+      - run: rm -rf target/doc/
+
   integration-test:
     runs-on: ubuntu-latest
     steps:
@@ -73,6 +85,7 @@ jobs:
       - uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+      # Install nak for nostr client operations
       - name: Install nak
         run: |
           curl -sL https://api.github.com/repos/fiatjaf/nak/releases/latest | \
@@ -81,18 +94,27 @@ jobs:
           chmod +x nak
           sudo mv nak /usr/local/bin/
           nak --version
+      # Build the relay
       - name: Build relay
         run: cargo build --locked --bin nostr-rs-relay
+      # Start relay in background
       - name: Start relay
         run: |
           RUST_LOG=warn,nostr_rs_relay=info ./target/debug/nostr-rs-relay &
           echo $! > relay.pid
           # Wait for relay to start
           sleep 3
-      - name: Run integration tests
+      # Run integration tests
+      - name: Run basic integration tests
         run: |
           chmod +x ./just/basic-test.sh
           ./just/basic-test.sh
+      # Run lexe auth integration tests
+      - name: Run lexe authentication tests
+        run: |
+          chmod +x ./just/lexe-auth-test.sh
+          ./just/lexe-auth-test.sh
+      # Stop relay
       - name: Stop relay
         if: always()
         run: |

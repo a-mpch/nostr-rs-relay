@@ -17,4 +17,11 @@ pub struct CLIArgs {
         required = false
     )]
     pub config: Option<String>,
+    #[arg(
+        long,
+        help = "Comma-separated list of pubkeys allowed to use /lexe endpoint",
+        required = false,
+        value_delimiter = ','
+    )]
+    pub lexe_pubkeys: Option<Vec<String>>,
 }

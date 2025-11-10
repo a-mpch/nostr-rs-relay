@@ -94,6 +94,15 @@ fn main() {
     if let Some(db_dir) = db_dir_arg {
         settings.database.data_directory = db_dir;
     }
+
+    // update with lexe_pubkeys from args, if provided
+    if let Some(lexe_pubkeys) = args.lexe_pubkeys {
+        settings.authorization.lexe_pubkeys = Some(lexe_pubkeys);
+        info!(
+            "Lexe pubkeys set from CLI: {:?}",
+            settings.authorization.lexe_pubkeys
+        );
+    }
     // we should have a 'control plane' channel to monitor and bump
     // the server.  this will let us do stuff like clear the database,
     // shutdown, etc.; for now all this does is initiate shutdown if

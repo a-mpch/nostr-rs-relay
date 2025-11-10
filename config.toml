@@ -2,7 +2,8 @@
 
 [info]
 # The advertised URL for the Nostr websocket.
-relay_url = "wss://nostr.lexe.app/"
+# For local testing, use ws://localhost:8080/
+relay_url = "ws://localhost:8080/"
 
 # Relay information for clients.  Put your unique server name here.
 name = "lexe-relay"
@@ -172,9 +173,14 @@ limit_scrapers = true
 #  "887645fef0ce0c3c1218d2f5d8e6132a19304cdc57cd20281d082f38cfea0072",
 #]
 # Enable NIP-42 authentication
-#nip42_auth = false
+nip42_auth = true
 # Send DMs (kind 4 and 44) and gift wraps (kind 1059) only to their authenticated recipients
 #nip42_dms = false
+# Pubkey addresses allowed to use /lexe endpoint (requires NIP-42 auth)
+# For testing, the key in tests_data/lexe_pubkey is used
+lexe_pubkeys = [
+  "17ad2e890274ccdc04509cb9ddfd82decfd7156c26ea6cca7d9f30187ae954a2",
+]
 
 [verified_users]
 # NIP-05 verification of users.  Can be "enabled" to require NIP-05

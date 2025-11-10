@@ -57,105 +57,132 @@ use tungstenite::handshake;
 use tungstenite::protocol::Message;
 use tungstenite::protocol::WebSocketConfig;
 
-/// Handle arbitrary HTTP requests, including for `WebSocket` upgrades.
-#[allow(clippy::too_many_arguments)]
-async fn handle_web_request(
-    mut request: Request<Body>,
+#[derive(Clone)]
+struct ServerState {
     repo: Arc<dyn NostrRepo>,
     settings: Settings,
-    remote_addr: SocketAddr,
     broadcast: Sender<Event>,
-    event_tx: tokio::sync::mpsc::Sender<SubmittedEvent>,
-    shutdown: Receiver<()>,
+    event_tx: mpsc::Sender<SubmittedEvent>,
     favicon: Option<Vec<u8>>,
-    _registry: Registry,
+    #[allow(dead_code)]
+    registry: Registry,
     metrics: NostrMetrics,
+}
+
+struct WsConfig {
+    max_send_queue: usize,
+    should_auth: bool,
+}
+
+async fn handle_websocket_upgrade(
+    mut request: Request<Body>,
+    remote_addr: SocketAddr,
+    state: ServerState,
+    shutdown: Receiver<()>,
+    ws_config: WsConfig,
+) -> Result<Response<Body>, Infallible> {
+    trace!("websocket with upgrade request");
+    let response = match handshake::server::create_response_with_body(&request, Body::empty) {
+        Ok(response) => {
+            tokio::spawn(async move {
+                match upgrade::on(&mut request).await {
+                    Ok(upgraded) => {
+                        let config = WebSocketConfig {
+                            max_send_queue: Some(ws_config.max_send_queue),
+                            max_message_size: state.settings.limits.max_ws_message_bytes,
+                            max_frame_size: state.settings.limits.max_ws_frame_bytes,
+                            ..Default::default()
+                        };
+                        let ws_stream = WebSocketStream::from_raw_socket(
+                            upgraded,
+                            tokio_tungstenite::tungstenite::protocol::Role::Server,
+                            Some(config),
+                        )
+                        .await;
+                        let origin = get_header_string("origin", request.headers());
+                        let user_agent = get_header_string("user-agent", request.headers());
+                        let header_ip = state
+                            .settings
+                            .network
+                            .remote_ip_header
+                            .as_ref()
+                            .and_then(|x| get_header_string(x, request.headers()));
+                        let remote_ip = header_ip.unwrap_or_else(|| remote_addr.ip().to_string());
+                        let client_info = ClientInfo {
+                            remote_ip,
+                            user_agent,
+                            origin,
+                        };
+                        tokio::spawn(nostr_server(
+                            state.repo,
+                            client_info,
+                            state.settings,
+                            ws_stream,
+                            state.broadcast,
+                            state.event_tx,
+                            shutdown,
+                            ws_config.should_auth,
+                            state.metrics,
+                        ));
+                    }
+                    Err(e) => println!(
+                        "error when trying to upgrade connection \
+                         from address {remote_addr} to websocket connection. \
+                         Error is: {e}",
+                    ),
+                }
+            });
+            response
+        }
+        Err(error) => {
+            warn!("websocket response failed");
+            let mut res = Response::new(Body::from(format!("Failed to create websocket: {error}")));
+            *res.status_mut() = StatusCode::BAD_REQUEST;
+            return Ok(res);
+        }
+    };
+    Ok(response)
+}
+
+/// Handle arbitrary HTTP requests, including for `WebSocket` upgrades.
+async fn handle_web_request(
+    request: Request<Body>,
+    remote_addr: SocketAddr,
+    state: ServerState,
+    shutdown: Receiver<()>,
 ) -> Result<Response<Body>, Infallible> {
     match (
         request.uri().path(),
         request.headers().contains_key(header::UPGRADE),
     ) {
-        // TODO(maurice): Add an autheticated endpoint to connect internally.
-        // Request for / as websocket
+        // Request for / as websocket, no auth, but we limin the queue size and
+        // how subscriptions are handled.
         ("/", true) => {
-            trace!("websocket with upgrade request");
-            //assume request is a handshake, so create the handshake response
-            let response = match handshake::server::create_response_with_body(&request, || {
-                Body::empty()
-            }) {
-                Ok(response) => {
-                    //in case the handshake response creation succeeds,
-                    //spawn a task to handle the websocket connection
-                    tokio::spawn(async move {
-                        //using the hyper feature of upgrading a connection
-                        match upgrade::on(&mut request).await {
-                            //if successfully upgraded
-                            Ok(upgraded) => {
-                                // set WebSocket configuration options
-                                let config = WebSocketConfig {
-                                    max_send_queue: Some(64),
-                                    max_message_size: settings.limits.max_ws_message_bytes,
-                                    max_frame_size: settings.limits.max_ws_frame_bytes,
-                                    ..Default::default()
-                                };
-                                //create a websocket stream from the upgraded object
-                                let ws_stream = WebSocketStream::from_raw_socket(
-                                    //pass the upgraded object
-                                    //as the base layer stream of the Websocket
-                                    upgraded,
-                                    tokio_tungstenite::tungstenite::protocol::Role::Server,
-                                    Some(config),
-                                )
-                                .await;
-                                let origin = get_header_string("origin", request.headers());
-                                let user_agent = get_header_string("user-agent", request.headers());
-                                // determine the remote IP from headers if the exist
-                                let header_ip = settings
-                                    .network
-                                    .remote_ip_header
-                                    .as_ref()
-                                    .and_then(|x| get_header_string(x, request.headers()));
-                                // use the socket addr as a backup
-                                let remote_ip =
-                                    header_ip.unwrap_or_else(|| remote_addr.ip().to_string());
-                                let client_info = ClientInfo {
-                                    remote_ip,
-                                    user_agent,
-                                    origin,
-                                };
-                                // spawn a nostr server with our websocket
-                                tokio::spawn(nostr_server(
-                                    repo,
-                                    client_info,
-                                    settings,
-                                    ws_stream,
-                                    broadcast,
-                                    event_tx,
-                                    shutdown,
-                                    false,
-                                    metrics,
-                                ));
-                            }
-                            // todo: trace, don't print...
-                            Err(e) => println!(
-                                "error when trying to upgrade connection \
-                                 from address {remote_addr} to websocket connection. \
-                                 Error is: {e}",
-                            ),
-                        }
-                    });
-                    //return the response to the handshake request
-                    response
-                }
-                Err(error) => {
-                    warn!("websocket response failed");
-                    let mut res =
-                        Response::new(Body::from(format!("Failed to create websocket: {error}")));
-                    *res.status_mut() = StatusCode::BAD_REQUEST;
-                    return Ok(res);
-                }
-            };
-            Ok::<_, Infallible>(response)
+            handle_websocket_upgrade(
+                request,
+                remote_addr,
+                state,
+                shutdown,
+                WsConfig {
+                    max_send_queue: 64,
+                    should_auth: false,
+                },
+            )
+            .await
+        }
+        // Request for /lexe as websocket with auth.
+        ("/lexe", true) => {
+            handle_websocket_upgrade(
+                request,
+                remote_addr,
+                state,
+                shutdown,
+                WsConfig {
+                    max_send_queue: 2048,
+                    should_auth: true,
+                },
+            )
+            .await
         }
         // Request for Relay info
         ("/", false) => {
@@ -168,7 +195,7 @@ async fn handle_web_request(
                     if mt_str.contains("application/nostr+json") {
                         // build a relay info response
                         debug!("Responding to server info request");
-                        let rinfo = RelayInfo::from(settings);
+                        let rinfo = RelayInfo::from(state.settings);
                         let b = Body::from(serde_json::to_string_pretty(&rinfo).unwrap());
                         return Ok(Response::builder()
                             .status(200)
@@ -180,7 +207,7 @@ async fn handle_web_request(
                 }
             }
 
-            if let Some(relay_file_path) = settings.info.relay_page {
+            if let Some(relay_file_path) = state.settings.info.relay_page {
                 match file_bytes(&relay_file_path) {
                     Ok(file_content) => {
                         return Ok(Response::builder()
@@ -215,7 +242,7 @@ async fn handle_web_request(
         //         .unwrap())
         // }
         ("/favicon.ico", false) => {
-            if let Some(favicon_bytes) = favicon {
+            if let Some(favicon_bytes) = state.favicon {
                 info!("returning favicon");
                 Ok(Response::builder()
                     .status(StatusCode::OK)
@@ -562,31 +589,23 @@ pub fn start_server(settings: &Settings, shutdown_rx: MpscReceiver<()>) -> Resul
 
         // A `Service` is needed for every connection, so this
         // creates one from our `handle_request` function.
+        let state = ServerState {
+            repo: repo.clone(),
+            settings: settings.clone(),
+            broadcast: bcast_tx.clone(),
+            event_tx: event_tx.clone(),
+            favicon: favicon.clone(),
+            registry: registry.clone(),
+            metrics: metrics.clone(),
+        };
         let make_svc = make_service_fn(|conn: &AddrStream| {
-            let repo = repo.clone();
             let remote_addr = conn.remote_addr();
-            let bcast = bcast_tx.clone();
-            let event = event_tx.clone();
             let stop = invoke_shutdown.clone();
-            let settings = settings.clone();
-            let favicon = favicon.clone();
-            let registry = registry.clone();
-            let metrics = metrics.clone();
+            let state = state.clone();
             async move {
                 // service_fn converts our function into a `Service`
                 Ok::<_, Infallible>(service_fn(move |request: Request<Body>| {
-                    handle_web_request(
-                        request,
-                        repo.clone(),
-                        settings.clone(),
-                        remote_addr,
-                        bcast.clone(),
-                        event.clone(),
-                        stop.subscribe(),
-                        favicon.clone(),
-                        registry.clone(),
-                        metrics.clone(),
-                    )
+                    handle_web_request(request, remote_addr, state.clone(), stop.subscribe())
                 }))
             }
         });
@@ -892,6 +911,27 @@ async fn nostr_server(
                                 let id_prefix:String = e.id.chars().take(8).collect();
                                 debug!("successfully parsed/validated event: {:?} (cid: {}, kind: {})", id_prefix, cid, e.kind);
 
+                                if should_auth {
+                                    match conn.auth_pubkey() {
+                                        Some(auth_pubkey) => {
+                                            if let Some(ref lexe_pubkeys) = settings.authorization.lexe_pubkeys {
+                                                if !lexe_pubkeys.contains(auth_pubkey) {
+                                                    info!("authenticated pubkey not in lexe_pubkeys allowlist (cid: {}, event: {:?})", cid, id_prefix);
+                                                    let notice = Notice::restricted(e.id.clone(), "authenticated pubkey not authorized for this endpoint");
+                                                    ws_stream.send(make_notice_message(&notice)).await.ok();
+                                                    continue;
+                                                }
+                                            }
+                                        }
+                                        None => {
+                                            info!("event requires authentication (cid: {}, event: {:?})", cid, id_prefix);
+                                            let notice = Notice::auth_required(e.id.clone(), "this endpoint requires NIP-42 authentication");
+                                            ws_stream.send(make_notice_message(&notice)).await.ok();
+                                            continue;
+                                        }
+                                    }
+                                }
+
                                 // check if event is expired
                                 if e.is_expired() {
                                     let notice = Notice::invalid(e.id, "The event has already expired");
@@ -944,6 +984,7 @@ async fn nostr_server(
                                                         None => "<unspecified>".to_string(),
                                                     };
                                                     info!("client is authenticated: (cid: {}, pubkey: {:?})", cid, pubkey);
+                                                    ws_stream.send(make_notice_message(&Notice::saved(event.id.clone()))).await.ok();
                                                 },
                                                 Err(e) => {
                                                     info!("authentication error: {} (cid: {})", e, cid);
@@ -984,6 +1025,28 @@ async fn nostr_server(
                                 info!("subscription was scraper, ignoring (cid: {}, sub: {:?})", cid, s.id);
                                 ws_stream.send(Message::Text(format!("[\"EOSE\",\"{}\"]", s.id))).await.ok();
                                 continue
+                            }
+
+                            if should_auth {
+                                match conn.auth_pubkey() {
+                                    Some(auth_pubkey) => {
+                                        // Check if authenticated pubkey is in lexe_pubkeys allowlist
+                                        if let Some(ref lexe_pubkeys) = settings.authorization.lexe_pubkeys {
+                                            if !lexe_pubkeys.contains(auth_pubkey) {
+                                                info!("authenticated pubkey not in lexe_pubkeys allowlist (cid: {}, sub: {:?})", cid, s.id);
+                                                // TODO(maurice): Maybe create a generalziation for
+                                                // this kind of error messages.
+                                                ws_stream.send(Message::Text(format!("[\"CLOSED\",\"{}\",\"auth-required: authenticated pubkey not authorized for this endpoint\"]", s.id))).await.ok();
+                                                continue;
+                                            }
+                                        }
+                                    }
+                                    None => {
+                                        info!("subscription requires authentication (cid: {}, sub: {:?})", cid, s.id);
+                                        ws_stream.send(Message::Text(format!("[\"CLOSED\",\"{}\",\"auth-required: this endpoint requires NIP-42 authentication\"]", s.id))).await.ok();
+                                        continue;
+                                    }
+                                }
                             }
 
                             // If the subscription wasn't targeted (e or p tag), ignore it. We
