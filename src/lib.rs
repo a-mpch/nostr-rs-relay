@@ -11,6 +11,7 @@ pub mod nauthz;
 pub mod nip05;
 pub mod notice;
 pub mod repo;
+pub mod seed_data;
 pub mod subscription;
 pub mod utils;
 // Public API for creating relays programmatically

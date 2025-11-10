@@ -923,6 +923,50 @@ LIMIT 1;
             confirmed_at: None,
         }))
     }
+
+    async fn reset_database(&self) -> Result<()> {
+        let mut conn = self.write_pool.get()?;
+
+        tokio::task::spawn_blocking(move || {
+            info!("Resetting database - clearing all data from tables");
+            let tx = conn.transaction()?;
+
+            // Delete all data from tables in order (respecting foreign keys)
+            tx.execute("DELETE FROM tag", [])?;
+            tx.execute("DELETE FROM event", [])?;
+            tx.execute("DELETE FROM user_verification", [])?;
+            tx.execute("DELETE FROM invoice", [])?;
+            tx.execute("DELETE FROM account", [])?;
+
+            tx.commit()?;
+            info!("Database reset complete");
+            Ok::<(), crate::error::Error>(())
+        })
+        .await?
+    }
+
+    async fn seed_database(&self, seed_config: &crate::config::SeedData) -> Result<()> {
+        use crate::seed_data::create_nip47_info_event;
+
+        info!("Seeding database with NIP-47 info event");
+        let event = create_nip47_info_event(seed_config)?;
+
+        // Use the existing write_event method to persist the seed event
+        let rows_added = self.write_event(&event).await?;
+
+        if rows_added > 0 {
+            info!(
+                "Seed event inserted successfully (kind: {}, id: {}, pubkey: {})",
+                event.kind,
+                &event.id[..8],
+                &event.pubkey[..8]
+            );
+        } else {
+            warn!("Seed event was not inserted (may be duplicate)");
+        }
+
+        Ok(())
+    }
 }
 
 /// Decide if there is an index that should be used explicitly

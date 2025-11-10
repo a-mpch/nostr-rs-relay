@@ -179,6 +179,22 @@ pub struct Logging {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SeedData {
+    /// Event ID (32-byte hex)
+    pub id: String,
+    /// Public key of wallet service (32-byte hex)
+    pub pubkey: String,
+    /// Event creation timestamp (unix seconds)
+    pub created_at: u64,
+    /// Event signature (64-byte hex schnorr signature)
+    pub sig: String,
+    /// List of supported commands (space-separated in event content)
+    pub commands: Vec<String>,
+    /// List of supported encryption methods (space-separated in tags)
+    pub encryption_methods: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(unused)]
 pub struct Settings {
     pub info: Info,
@@ -193,6 +209,7 @@ pub struct Settings {
     pub retention: Retention,
     pub options: Options,
     pub logging: Logging,
+    pub seed_data: SeedData,
 }
 
 impl Settings {
@@ -364,6 +381,16 @@ impl Default for Settings {
             logging: Logging {
                 folder_path: None,
                 file_prefix: None,
+            },
+            seed_data: SeedData {
+                // Development event - pre-signed with test key
+                // DO NOT use in production! Generate your own event.
+                id: "9856192b4968ba1f597aada2291d2adaf2f785091db91504caed67d4454e022c".to_owned(),
+                pubkey: "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798".to_owned(),
+                created_at: 1700000000,
+                sig: "8b9daa3dcad3d436d32b087688b86bb18eb4c81d907a46a73be096f7caa2dc02a1e0dd8507dde56c28964af0e25fd56f07aac6acb112b8bf15c84f3a75ec11a0".to_owned(),
+                commands: vec!["get_info".to_owned()],
+                encryption_methods: vec!["nip44_v2".to_owned()],
             },
         }
     }

@@ -25,6 +25,38 @@ echo "   pubkey: $TEST_PUBKEY"
 # Give relay time to start if it just started
 sleep 1
 
+# Test 0: Query for NIP-47 info event (kind 13194) - should be seeded on startup
+echo ""
+echo "🔍 Test 0: Querying for seeded NIP-47 info event..."
+# NIP-47 info events are allowed without targeting for service discovery
+INFO_RESULT=$(timeout 3 nak req -k 13194 -l 1 "$RELAY_URL" 2>&1 || true)
+
+# Verify event is returned
+if echo "$INFO_RESULT" | grep -q "get_info"; then
+    echo "   ✅ NIP-47 info event found with get_info command"
+else
+    echo "   ❌ NIP-47 info event not found or missing get_info"
+    echo "   Result: $INFO_RESULT"
+    FAILED=$((FAILED + 1))
+fi
+
+# Verify encryption tag
+if echo "$INFO_RESULT" | grep -q "nip44_v2"; then
+    echo "   ✅ Encryption method is nip44_v2"
+else
+    echo "   ❌ Expected nip44_v2 encryption"
+    echo "   Result: $INFO_RESULT"
+    FAILED=$((FAILED + 1))
+fi
+
+# Verify it's kind 13194
+if echo "$INFO_RESULT" | grep -q '"kind":13194'; then
+    echo "   ✅ Event kind is 13194"
+else
+    echo "   ❌ Expected kind 13194"
+    FAILED=$((FAILED + 1))
+fi
+
 # Insert a kind 1 test event directly into the database
 echo ""
 echo "💾 Inserting kind 1 test event into database..."

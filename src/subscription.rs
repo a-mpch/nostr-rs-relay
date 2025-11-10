@@ -262,6 +262,17 @@ impl Subscription {
     /// Is this subscription defined as a scraper query
     pub fn is_scraper(&self) -> bool {
         for f in &self.filters {
+            // Allow NIP-47 info queries (kind 13194) even with low precision
+            // These are meant to be publicly queryable for service discovery
+            let is_nip47_info = f
+                .kinds
+                .as_ref()
+                .map(|kinds| kinds.contains(&13194))
+                .unwrap_or(false);
+            if is_nip47_info {
+                continue; // Skip scraper check for NIP-47 info queries
+            }
+
             let mut precision = 0;
             if f.ids.is_some() {
                 precision += 2;
@@ -282,9 +293,20 @@ impl Subscription {
         false
     }
 
-    /// Check if this subscription has either a `e` or `p` tag.
+    /// Check if this subscription has either a `e` or `p` tag, or is for NIP-47 info events.
     pub fn is_targeted(&self) -> bool {
         for f in &self.filters {
+            // Allow NIP-47 info events (kind 13194) without targeting
+            // These are meant to be publicly queryable for service discovery
+            let is_nip47_info = f
+                .kinds
+                .as_ref()
+                .map(|kinds| kinds.contains(&13194))
+                .unwrap_or(false);
+            if is_nip47_info {
+                return true;
+            }
+
             let has_expected_tag = f
                 .tags
                 .as_ref()

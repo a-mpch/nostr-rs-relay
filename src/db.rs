@@ -55,6 +55,11 @@ async fn build_sqlite_pool(settings: &Settings, metrics: NostrMetrics) -> Sqlite
     let repo = SqliteRepo::new(settings, metrics);
     repo.start().await.ok();
     repo.migrate_up().await.ok();
+
+    // Reset database and seed with initial data
+    repo.reset_database().await.ok();
+    repo.seed_database(&settings.seed_data).await.ok();
+
     repo
 }
 
@@ -95,6 +100,11 @@ async fn build_postgres_pool(settings: &Settings, metrics: NostrMetrics) -> Post
     info!("Postgres migration completed, at v{}", version);
     // startup scheduled tasks
     repo.start().await.ok();
+
+    // Reset database and seed with initial data
+    repo.reset_database().await.ok();
+    repo.seed_database(&settings.seed_data).await.ok();
+
     repo
 }
 

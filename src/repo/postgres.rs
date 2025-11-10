@@ -709,6 +709,47 @@ LIMIT 1;
             None => Ok(None),
         }
     }
+
+    async fn reset_database(&self) -> Result<()> {
+        info!("Resetting database - clearing all data from tables");
+        let mut tx = self.conn_write.begin().await?;
+
+        // Delete all data from tables in order (respecting foreign keys)
+        sqlx::query("DELETE FROM tag").execute(&mut tx).await?;
+        sqlx::query("DELETE FROM event").execute(&mut tx).await?;
+        sqlx::query("DELETE FROM user_verification")
+            .execute(&mut tx)
+            .await?;
+        sqlx::query("DELETE FROM invoice").execute(&mut tx).await?;
+        sqlx::query("DELETE FROM account").execute(&mut tx).await?;
+
+        tx.commit().await?;
+        info!("Database reset complete");
+        Ok(())
+    }
+
+    async fn seed_database(&self, seed_config: &crate::config::SeedData) -> Result<()> {
+        use crate::seed_data::create_nip47_info_event;
+
+        info!("Seeding database with NIP-47 info event");
+        let event = create_nip47_info_event(seed_config)?;
+
+        // Use the existing write_event method to persist the seed event
+        let rows_added = self.write_event(&event).await?;
+
+        if rows_added > 0 {
+            info!(
+                "Seed event inserted successfully (kind: {}, id: {}, pubkey: {})",
+                event.kind,
+                &event.id[..8],
+                &event.pubkey[..8]
+            );
+        } else {
+            warn!("Seed event was not inserted (may be duplicate)");
+        }
+
+        Ok(())
+    }
 }
 
 /// Create a dynamic SQL query and params from a subscription filter.

@@ -257,3 +257,26 @@ lexe_pubkeys = [
 
 # optional if `direct_message=false`
 #secret_key = "<nostr nsec>"
+
+[seed_data]
+# NIP-47 wallet service seed event configuration
+# This is a pre-signed event - the private key is NOT stored on the relay
+# WARNING: DO NOT use this development event in production!
+
+# Event ID (32-byte hex)
+id = "9856192b4968ba1f597aada2291d2adaf2f785091db91504caed67d4454e022c"
+
+# Wallet service public key (32-byte hex)
+pubkey = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
+
+# Event creation timestamp (unix seconds)
+created_at = 1700000000
+
+# Event signature (64-byte hex schnorr signature)
+sig = "8b9daa3dcad3d436d32b087688b86bb18eb4c81d907a46a73be096f7caa2dc02a1e0dd8507dde56c28964af0e25fd56f07aac6acb112b8bf15c84f3a75ec11a0"
+
+# Supported NIP-47 commands (space-separated in event content)
+commands = ["get_info"]
+
+# Supported encryption methods (space-separated in tags)
+encryption_methods = ["nip44_v2"]

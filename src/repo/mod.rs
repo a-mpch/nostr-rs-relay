@@ -86,6 +86,12 @@ pub trait NostrRepo: Send + Sync {
     /// Get the most recent invoice for a given pubkey
     /// invoice must be unpaid and not expired
     async fn get_unpaid_invoice(&self, pubkey: &Keys) -> Result<Option<InvoiceInfo>>;
+
+    /// Reset database by clearing all data from tables (does not drop tables)
+    async fn reset_database(&self) -> Result<()>;
+
+    /// Seed database with initial NIP-47 info event
+    async fn seed_database(&self, seed_config: &crate::config::SeedData) -> Result<()>;
 }
 
 // Current time, with a slight forward jitter in seconds
