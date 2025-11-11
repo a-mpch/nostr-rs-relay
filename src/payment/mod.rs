@@ -95,7 +95,6 @@ pub enum PaymentMessage {
 }
 
 impl Payment {
-    #[allow(clippy::result_large_err)]
     pub fn new(
         repo: Arc<dyn NostrRepo>,
         payment_tx: tokio::sync::broadcast::Sender<PaymentMessage>,

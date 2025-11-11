@@ -109,7 +109,6 @@ impl std::fmt::Display for Nip05Name {
 }
 
 /// Check if the specified username and address are present and match in this response body
-#[allow(clippy::result_large_err)]
 fn body_contains_user(username: &str, address: &str, bytes: &hyper::body::Bytes) -> Result<bool> {
     // convert the body into json
     let body: serde_json::Value = serde_json::from_slice(bytes)?;
@@ -126,7 +125,6 @@ fn body_contains_user(username: &str, address: &str, bytes: &hyper::body::Bytes)
 }
 
 impl Verifier {
-    #[allow(clippy::result_large_err)]
     pub fn new(
         repo: Arc<dyn NostrRepo>,
         metadata_rx: tokio::sync::broadcast::Receiver<Event>,

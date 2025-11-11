@@ -37,13 +37,13 @@ pub enum Error {
     #[error("JSON parsing failed")]
     JsonParseFailed(serde_json::Error),
     #[error("WebSocket proto error")]
-    WebsocketError(WsError),
+    WebsocketError(Box<WsError>),
     #[error("Command unknown")]
     CommandUnknownError,
     #[error("SQL error")]
     SqlError(rusqlite::Error),
     #[error("Config error : {0}")]
-    ConfigError(config::ConfigError),
+    ConfigError(Box<config::ConfigError>),
     #[error("Data directory does not exist")]
     DatabaseDirError,
     #[error("Database Connection Pool Error")]
@@ -67,7 +67,7 @@ pub enum Error {
     #[error("Authz error")]
     AuthzError,
     #[error("Tonic GRPC error")]
-    TonicError(tonic::Status),
+    TonicError(Box<tonic::Status>),
     #[error("Invalid AUTH message")]
     AuthFailure,
     #[error("I/O Error")]
@@ -140,21 +140,21 @@ impl From<serde_json::Error> for Error {
 impl From<WsError> for Error {
     /// Wrap Websocket error
     fn from(r: WsError) -> Self {
-        Error::WebsocketError(r)
+        Error::WebsocketError(Box::new(r))
     }
 }
 
 impl From<config::ConfigError> for Error {
     /// Wrap Config error
     fn from(r: config::ConfigError) -> Self {
-        Error::ConfigError(r)
+        Error::ConfigError(Box::new(r))
     }
 }
 
 impl From<tonic::Status> for Error {
     /// Wrap Config error
     fn from(r: tonic::Status) -> Self {
-        Error::TonicError(r)
+        Error::TonicError(Box::new(r))
     }
 }
 

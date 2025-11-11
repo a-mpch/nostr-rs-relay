@@ -5,7 +5,6 @@ use crate::event::Event;
 use tracing::info;
 
 /// Build a NIP-47 info event (kind 13194) from pre-signed configuration
-#[allow(clippy::result_large_err)]
 pub fn create_nip47_info_event(config: &SeedData) -> Result<Event> {
     info!(
         "Loading pre-signed NIP-47 info event (pubkey: {}, id: {})",

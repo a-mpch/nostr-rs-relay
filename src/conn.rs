@@ -103,7 +103,6 @@ impl ClientConn {
     ///
     /// Will return `Err` if the client has too many subscriptions, or
     /// if the provided name is excessively long.
-    #[allow(clippy::result_large_err)]
     pub fn subscribe(&mut self, s: Subscription) -> Result<()> {
         let k = s.get_id();
         let sub_id_len = k.len();
@@ -157,7 +156,6 @@ impl ClientConn {
         self.auth = Challenge(Uuid::new_v4().to_string());
     }
 
-    #[allow(clippy::result_large_err)]
     pub fn authenticate(&mut self, event: &Event, relay_url: &str) -> Result<()> {
         match &self.auth {
             Challenge(_) => (),

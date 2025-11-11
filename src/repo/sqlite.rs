@@ -102,7 +102,6 @@ impl SqliteRepo {
     }
 
     /// Persist an event to the database, returning rows added.
-    #[allow(clippy::result_large_err)]
     pub fn persist_event(conn: &mut PooledConnection, e: &Event) -> Result<u64> {
         // enable auto vacuum
         conn.execute_batch("pragma auto_vacuum = FULL")?;
@@ -1265,7 +1264,6 @@ async fn cleanup_expired(
 }
 
 /// Execute a query to delete all expired events
-#[allow(clippy::result_large_err)]
 pub fn delete_expired(conn: &mut PooledConnection) -> Result<usize> {
     let tx = conn.transaction()?;
     let update_count = tx.execute(
@@ -1335,7 +1333,6 @@ enum SqliteStatus {
 }
 
 /// Checkpoint/Truncate WAL.  Returns the number of WAL pages remaining.
-#[allow(clippy::result_large_err)]
 pub fn checkpoint_db(conn: &mut PooledConnection) -> Result<usize> {
     let query = "PRAGMA wal_checkpoint(TRUNCATE);";
     let start = Instant::now();

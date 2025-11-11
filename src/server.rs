@@ -393,7 +393,6 @@ fn create_metrics() -> (Registry, NostrMetrics) {
     (registry, metrics)
 }
 
-#[allow(clippy::result_large_err)]
 fn file_bytes(path: &str) -> Result<Vec<u8>> {
     let f = File::open(path)?;
     let mut reader = BufReader::new(f);
@@ -404,7 +403,6 @@ fn file_bytes(path: &str) -> Result<Vec<u8>> {
 }
 
 /// Start running a Nostr relay server.
-#[allow(clippy::result_large_err)]
 pub fn start_server(settings: &Settings, shutdown_rx: MpscReceiver<()>) -> Result<(), Error> {
     trace!("Config: {:?}", settings);
     // do some config validation.
@@ -633,7 +631,6 @@ pub enum NostrMessage {
 }
 
 /// Convert Message to `NostrMessage`
-#[allow(clippy::result_large_err)]
 fn convert_to_msg(msg: &str, max_bytes: Option<usize>) -> Result<NostrMessage> {
     let parsed_res: Result<NostrMessage> =
         serde_json::from_str(msg).map_err(std::convert::Into::into);
