@@ -9,8 +9,6 @@ use async_trait::async_trait;
 use nostr::Keys;
 use rand::Rng;
 
-pub mod postgres;
-pub mod postgres_migration;
 pub mod sqlite;
 pub mod sqlite_migration;
 

@@ -174,15 +174,15 @@ pub fn upgrade_db(conn: &mut PooledConnection) -> Result<usize> {
 
     debug!(
         "SQLite max query parameters: {}",
-        conn.limit(Limit::SQLITE_LIMIT_VARIABLE_NUMBER)
+        conn.limit(Limit::SQLITE_LIMIT_VARIABLE_NUMBER)?
     );
     debug!(
         "SQLite max table/blob/text length: {} MB",
-        (f64::from(conn.limit(Limit::SQLITE_LIMIT_LENGTH)) / f64::from(1024 * 1024)).floor()
+        (f64::from(conn.limit(Limit::SQLITE_LIMIT_LENGTH)?) / f64::from(1024 * 1024)).floor()
     );
     debug!(
         "SQLite max SQL length: {} MB",
-        (f64::from(conn.limit(Limit::SQLITE_LIMIT_SQL_LENGTH)) / f64::from(1024 * 1024)).floor()
+        (f64::from(conn.limit(Limit::SQLITE_LIMIT_SQL_LENGTH)?) / f64::from(1024 * 1024)).floor()
     );
 
     match curr_version.cmp(&DB_VERSION) {

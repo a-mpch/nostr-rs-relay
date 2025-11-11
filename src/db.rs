@@ -5,22 +5,17 @@ use crate::event::Event;
 use crate::nauthz;
 use crate::notice::Notice;
 use crate::payment::PaymentMessage;
-use crate::repo::postgres::{PostgresPool, PostgresRepo};
 use crate::repo::sqlite::SqliteRepo;
 use crate::repo::NostrRepo;
 use crate::server::NostrMetrics;
 use governor::clock::Clock;
 use governor::{Quota, RateLimiter};
-use log::LevelFilter;
 use nostr::key::FromPkStr;
 use nostr::key::Keys;
 use r2d2;
-use sqlx::pool::PoolOptions;
-use sqlx::postgres::PgConnectOptions;
-use sqlx::ConnectOptions;
 use std::sync::Arc;
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use tracing::{debug, info, trace, warn};
 
 pub type SqlitePool = r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>;
@@ -44,62 +39,13 @@ pub const DB_FILE: &str = "nostr.db";
 ///
 /// Will panic if the pool could not be created.
 pub async fn build_repo(settings: &Settings, metrics: NostrMetrics) -> Arc<dyn NostrRepo> {
-    match settings.database.engine.as_str() {
-        "sqlite" => Arc::new(build_sqlite_pool(settings, metrics).await),
-        "postgres" => Arc::new(build_postgres_pool(settings, metrics).await),
-        _ => panic!("Unknown database engine"),
-    }
+    Arc::new(build_sqlite_pool(settings, metrics).await)
 }
 
 async fn build_sqlite_pool(settings: &Settings, metrics: NostrMetrics) -> SqliteRepo {
     let repo = SqliteRepo::new(settings, metrics);
     repo.start().await.ok();
     repo.migrate_up().await.ok();
-
-    // Reset database and seed with initial data
-    repo.reset_database().await.ok();
-    repo.seed_database(&settings.seed_data).await.ok();
-
-    repo
-}
-
-async fn build_postgres_pool(settings: &Settings, metrics: NostrMetrics) -> PostgresRepo {
-    let mut options: PgConnectOptions = settings.database.connection.as_str().parse().unwrap();
-    options.log_statements(LevelFilter::Debug);
-    options.log_slow_statements(LevelFilter::Warn, Duration::from_secs(60));
-
-    let pool: PostgresPool = PoolOptions::new()
-        .max_connections(settings.database.max_conn)
-        .min_connections(settings.database.min_conn)
-        .idle_timeout(Duration::from_secs(60))
-        .connect_with(options)
-        .await
-        .unwrap();
-
-    let write_pool: PostgresPool = match &settings.database.connection_write {
-        Some(cfg_write) => {
-            let mut options_write: PgConnectOptions = cfg_write.as_str().parse().unwrap();
-            options_write.log_statements(LevelFilter::Debug);
-            options_write.log_slow_statements(LevelFilter::Warn, Duration::from_secs(60));
-
-            PoolOptions::new()
-                .max_connections(settings.database.max_conn)
-                .min_connections(settings.database.min_conn)
-                .idle_timeout(Duration::from_secs(60))
-                .connect_with(options_write)
-                .await
-                .unwrap()
-        }
-        None => pool.clone(),
-    };
-
-    let repo = PostgresRepo::new(pool, write_pool, metrics);
-
-    // Panic on migration failure
-    let version = repo.migrate_up().await.unwrap();
-    info!("Postgres migration completed, at v{}", version);
-    // startup scheduled tasks
-    repo.start().await.ok();
 
     // Reset database and seed with initial data
     repo.reset_database().await.ok();
@@ -265,10 +211,7 @@ pub async fn db_writer(
                         user_balance = Some(balance);
                         debug!("User balance: {:?}", user_balance);
                     }
-                    Err(
-                        Error::SqlError(rusqlite::Error::QueryReturnedNoRows)
-                        | Error::SqlxError(sqlx::Error::RowNotFound),
-                    ) => {
+                    Err(Error::SqlError(rusqlite::Error::QueryReturnedNoRows)) => {
                         // User does not exist
                         info!("Unregistered user");
                         if settings.pay_to_relay.sign_ups && settings.pay_to_relay.direct_message {
@@ -324,10 +267,7 @@ pub async fn db_writer(
                             continue;
                         }
                     }
-                    Err(
-                        Error::SqlError(rusqlite::Error::QueryReturnedNoRows)
-                        | Error::SqlxError(sqlx::Error::RowNotFound),
-                    ) => {
+                    Err(Error::SqlError(rusqlite::Error::QueryReturnedNoRows)) => {
                         debug!(
                             "no verification records found for pubkey: {:?}",
                             event.get_author_prefix()

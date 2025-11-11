@@ -47,8 +47,7 @@ pub enum Processor {
 }
 
 /// Possible states of an invoice
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, sqlx::Type)]
-#[sqlx(type_name = "status")]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum InvoiceStatus {
     Unpaid,
     Paid,
@@ -95,6 +94,7 @@ pub enum PaymentMessage {
 }
 
 impl Payment {
+    #[allow(clippy::result_large_err)]
     pub fn new(
         repo: Arc<dyn NostrRepo>,
         payment_tx: tokio::sync::broadcast::Sender<PaymentMessage>,
